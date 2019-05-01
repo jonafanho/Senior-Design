@@ -122,7 +122,7 @@ int readForce() {
     return round(-0.0001105 * count + 937.29033);
 }
 
-const int THRESHOLD = 470;
+const int THRESHOLD = 650;
 
 void moveMotor(int stepsX, int stepsY, int stepsZ, int maxSpeed, int sensorAction) {
     int steps = abs(stepsX);
@@ -142,7 +142,7 @@ void moveMotor(int stepsX, int stepsY, int stepsZ, int maxSpeed, int sensorActio
         if((sensorAction==-1&&photoresistor<THRESHOLD) ||
            (sensorAction==1&&photoresistor>THRESHOLD)) {
             j++;
-            if(j == 800 || sensorAction == -1)
+            if(j == 600 || sensorAction == -1)
                 break;
         } else {
             j = 0;
@@ -162,7 +162,7 @@ const int Y_SPEED = 550, Y_SPEED_BIN_UP = 800;
 const int Z_SPEED = 400, Z_SPEED_BIN = 400;
 const int Z_STEPS = 45000;
 
-void moveMotorManual() {
+int moveMotorManual() {
     int buttons;
     LED_R_Write(0);
     drawRect(0, 0, 800, 480, colour(0,0,4), 1);
@@ -187,6 +187,15 @@ void moveMotorManual() {
         if(buttons == 6) moveMotor(0,0,-Z_STEPS,Z_SPEED_BIN,0);
         if(buttons == 8) moveMotor(0,0,100,Z_SPEED_BIN,0);
         if(buttons == 10) moveMotor(0,0,-100,Z_SPEED_BIN,0);
+        if(!Button_Read()) {
+            screen("Which bin are you at?", "Tyler, you thought the screen didn't work, did you?",
+                "Copyright \xA9 2019 VAST, Inc. All rights reserved.",
+                "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", 0, colour(4,0,0));
+            while(1) {
+                buttons = readButtons();
+                if(buttons != 0) return buttons;
+            }
+        }
         char string[256];
         int photoresistor = ADC_GetResult16(0);
         sprintf(string, " %d ", photoresistor);
@@ -204,7 +213,7 @@ void moveToBin(int button, int hasBin) {
     char string[256];
     sprintf(string, "Moving to bin %d", button);
     printText(400, 0, string, RA8875_WHITE, -1, 1, 1);
-    printText(400, 100, "Please stand back.", RA8875_WHITE, -1, 1, 1);
+    printText(400, 100, "Beware of moving parts.", RA8875_WHITE, -1, 1, 1);
     printText(400, 464, "Press the emergency stop button to exit.", RA8875_WHITE, -1, 0, 1);
     // offset x if only vertical movement
     if(x == 0)
@@ -223,15 +232,17 @@ void moveToBin(int button, int hasBin) {
     // move x to target until black
     moveMotor(-9999*getSign(x),0,0,X_SPEED,-1);
     // calibrate to black
-//    while(ADC_GetResult16(0) > THRESHOLD) {
-//        CyDelay(200);
-//        moveMotor(9999*(x!=0?getSign(x):1),0,0,1200,-1);
-//        CyDelay(200);
-//        moveMotor(-9999*(x!=0?getSign(x):1),0,0,1200,-1);
-//    }
+    while(ADC_GetResult16(0) > THRESHOLD) {
+        CyDelay(200);
+        moveMotor(9999*(x!=0?getSign(x):1),0,0,1200,-1);
+        CyDelay(200);
+        moveMotor(-9999*(x!=0?getSign(x):1),0,0,1200,-1);
+    }
 }
 
 const int COLOURS[] = { RA8875_BLACK, RA8875_BLUE, RA8875_CYAN, RA8875_GREEN, RA8875_MAGENTA, RA8875_RED, RA8875_WHITE, RA8875_YELLOW };
+const int stepsAbove[] = { 0, 700, 700, 500, 500, 800, 600, 0, 0, 0, 0 };
+const int stepsBelow[] = { 0, 400, 400, 400, 400, 0, 400, 700, 700, 0, 0 };
 
 int main() {
     CyGlobalIntEnable;
@@ -263,35 +274,40 @@ int main() {
         
         if(button != 0) {
             moveToBin(button, hasBin);
-            /*if(hasBin == 1) {
+            if(hasBin == 1) {
                 // move up a little
-                moveMotor(0,500,0,Y_SPEED_BIN_UP,0);
+                moveMotor(0,stepsAbove[button],0,Y_SPEED_BIN_UP,0);
                 // extend z
                 moveMotor(0,0,Z_STEPS,Z_SPEED_BIN,0);
                 // move back down a little
-                moveMotor(0,-1000,0,Y_SPEED,0);
+                moveMotor(0,-stepsAbove[button]-stepsBelow[button],0,Y_SPEED,0);
                 // retract z
                 moveMotor(0,0,-Z_STEPS,Z_SPEED,0);
                 // move up a little
-                moveMotor(0,500,0,Y_SPEED,0);
+                moveMotor(0,stepsBelow[button],0,Y_SPEED,0);
             } else {
                 // move down a little
-                moveMotor(0,-500,0,Y_SPEED,0);
+                moveMotor(0,-stepsBelow[button],0,Y_SPEED,0);
                 // extend z
                 moveMotor(0,0,Z_STEPS,Z_SPEED,0);
                 // move back up a little
-                moveMotor(0,1000,0,Y_SPEED_BIN_UP,0);
+                moveMotor(0,stepsAbove[button]+stepsBelow[button],0,Y_SPEED_BIN_UP,0);
                 // retract z
                 moveMotor(0,0,-Z_STEPS,Z_SPEED_BIN,0);
                 // move down a little
-                moveMotor(0,-500,0,Y_SPEED,0);
+                moveMotor(0,-stepsAbove[button],0,Y_SPEED,0);
                 moveToBin(7, 1);
             }
-            hasBin *= -1;*/
+            hasBin *= -1;
             screen("Vertical Automated Storage Technology", "Tyler, you thought the screen didn't work, did you?",
                 "Copyright \xA9 2019 VAST, Inc. All rights reserved.",
                 "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", 0, RA8875_BLACK);
         }
-        if(!Button_Read()) moveMotorManual();
+        if(!Button_Read()) {
+            bin = moveMotorManual();
+            screen("Vertical Automated Storage Technology", "Tyler, you thought the screen didn't work, did you?",
+                "Copyright \xA9 2019 VAST, Inc. All rights reserved.",
+                "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", 0, RA8875_BLACK);
+        }
     }
 }
