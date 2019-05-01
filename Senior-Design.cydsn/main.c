@@ -122,14 +122,15 @@ int readForce() {
     return round(-0.0001105 * count + 937.29033);
 }
 
+const int THRESHOLD = 470;
+
 void moveMotor(int stepsX, int stepsY, int stepsZ, int maxSpeed, int sensorAction) {
     int steps = abs(stepsX);
     if(abs(stepsY) > steps)
         steps = abs(stepsY);
     if(abs(stepsZ) > steps)
         steps = abs(stepsZ);
-    int i, j=0, irOffset=0, critical=sensorAction==1?0:9999, prevPhoto=0;
-    const int THRESHOLD = 600;
+    int i, j=0, irOffset=0;
     for(i=0;i<steps;i++) {
         stepMotor(i<abs(stepsX)*2?i*getSign(stepsX)/2:0,i<abs(stepsY)?i*getSign(stepsY):0,i<abs(stepsZ)?i*getSign(stepsZ):0);
         while(IR_Read()) {
@@ -138,23 +139,14 @@ void moveMotor(int stepsX, int stepsY, int stepsZ, int maxSpeed, int sensorActio
             //CyDelay(2000);
         }
         int photoresistor = ADC_GetResult16(0);
-        int p2 = (photoresistor + prevPhoto) / 2;
-//        if(sensorAction != 0) {
-//            drawLine(i%800,480,i%800,(1500-critical)/4,RA8875_WHITE);
-//            drawLine(i%800,0,i%800,(1500-critical)/4-1,RA8875_BLACK);
-//        }
-        if(sensorAction == -1) {
-            if(p2 < critical && p2 < THRESHOLD) critical = p2;
-            if(p2 > critical+20) j++;
-            else j = 0;
+        if((sensorAction==-1&&photoresistor<THRESHOLD) ||
+           (sensorAction==1&&photoresistor>THRESHOLD)) {
+            j++;
+            if(j == 800 || sensorAction == -1)
+                break;
+        } else {
+            j = 0;
         }
-        if(sensorAction == 1) {
-            if(p2 > critical && p2 > THRESHOLD) critical = p2;
-            if(p2 < critical-20) j++;
-            else j = 0;
-        }
-        if(j >= 10) break;
-        prevPhoto = photoresistor;
         delayExponential(steps-irOffset, 2000, maxSpeed, i-irOffset);
     }
     resetPins();
@@ -199,15 +191,6 @@ void moveMotorManual() {
         int photoresistor = ADC_GetResult16(0);
         sprintf(string, " %d ", photoresistor);
         printText(400, 300, string, RA8875_WHITE, colour(0,0,4), 1, 1);
-        // if(buttons == 8) { speed -= 20; LED_R_Write(1); CyDelay(100); LED_R_Write(0); }
-//        LED_R_Write(ADC_GetResult16(0)>threshold);
-//        for(i=0;i<ADC_GetResult16(0)/100;i++) {
-//            LED_R_Write(0);
-//            CyDelay(200);
-//            LED_R_Write(1);
-//            CyDelay(200);
-//        }
-//        CyDelay(1000);
     }
 }
 
@@ -264,8 +247,6 @@ int main() {
     resetPins();
     ADC_Start();
     ADC_StartConvert();
-    //threshold = ADC_GetResult16(0) + 200;
-    //threshold = 700;
     
     int hasBin = -1;
     
