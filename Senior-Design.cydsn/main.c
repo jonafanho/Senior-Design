@@ -133,11 +133,11 @@ void moveMotor(int stepsX, int stepsY, int stepsZ, int maxSpeed, int sensorActio
     int i, j=0, irOffset=0;
     for(i=0;i<steps;i++) {
         stepMotor(i<abs(stepsX)*2?i*getSign(stepsX)/2:0,i<abs(stepsY)?i*getSign(stepsY):0,i<abs(stepsZ)?i*getSign(stepsZ):0);
-        while(IR_Read()) {
+        /*while(IR_Read()) {
             resetPins();
             irOffset=i;
             //CyDelay(2000);
-        }
+        }*/
         int photoresistor = ADC_GetResult16(0);
         if((sensorAction==-1&&photoresistor<THRESHOLD) ||
            (sensorAction==1&&photoresistor>THRESHOLD)) {
@@ -158,70 +158,89 @@ void moveMotor(int stepsX, int stepsY, int stepsZ, int maxSpeed, int sensorActio
 //const int Z_STEPS = 40600;
 
 const int X_SPEED = 900;
-const int Y_SPEED = 550, Y_SPEED_BIN_UP = 800;
-const int Z_SPEED = 400, Z_SPEED_BIN = 400;
+const int Z_SPEED = 360;
 const int Z_STEPS = 45000;
 
-int moveMotorManual() {
+int bin = 7;
+
+void moveMotorManual() {
     int buttons;
     LED_R_Write(0);
     drawRect(0, 0, 800, 480, colour(0,0,4), 1);
     int i = 1;
-    // int speed = 900;
+    int speed = 900;
+    int percentage = 100;
+    while(!Button_Read()) {}
     while(1) {
         buttons = readButtons();
         if(i == 1 || buttons != 0)
             screen("Manual Mode", "hi", "Press the emergency stop button to exit.",
                 "X left", "X right", "Y up", "Z out", "Y down", "Z in",
-                "Y up small", "Z out small", "Y down small", "Z in small",
+                "Move more", "Faster", "Move less", "Slower",
                 buttons, -1);
         if(buttons == 0) { CyDelay(10); resetPins(); i = 0; }
         else i = 1;
         if(buttons == 1) moveMotor(2000,0,0,X_SPEED,0);
         if(buttons == 2) moveMotor(-2000,0,0,X_SPEED,0);
-        if(buttons == 3) moveMotor(0,22000,0,Y_SPEED_BIN_UP,0); // 500 no load
-        if(buttons == 5) moveMotor(0,-22000,0,Y_SPEED,0);
-        if(buttons == 7) moveMotor(0,100,0,Y_SPEED_BIN_UP,0);
-        if(buttons == 9) moveMotor(0,-100,0,Y_SPEED,0);
-        if(buttons == 4) moveMotor(0,0,Z_STEPS,Z_SPEED_BIN,0); // 320 for no load
-        if(buttons == 6) moveMotor(0,0,-Z_STEPS,Z_SPEED_BIN,0);
-        if(buttons == 8) moveMotor(0,0,100,Z_SPEED_BIN,0);
-        if(buttons == 10) moveMotor(0,0,-100,Z_SPEED_BIN,0);
+        if(buttons == 3) moveMotor(0,percentage==0?100:220*percentage,0,speed,0); // 500 no load
+        if(buttons == 5) moveMotor(0,percentage==0?-100:-220*percentage,0,speed,0);
+        if(buttons == 4) moveMotor(0,0,Z_STEPS*percentage/100,speed,0); // 320 for no load
+        if(buttons == 6) moveMotor(0,0,-Z_STEPS*percentage/100,speed,0);
+        if(buttons == 7) percentage += 5;
+        if(buttons == 9 && percentage > 0) percentage -= 5;
+        if(buttons == 8) speed -= 20;
+        if(buttons == 10) speed += 20;
         if(!Button_Read()) {
             screen("Which bin are you at?", "Tyler, you thought the screen didn't work, did you?",
                 "Copyright \xA9 2019 VAST, Inc. All rights reserved.",
                 "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", 0, colour(4,0,0));
             while(1) {
                 buttons = readButtons();
-                if(buttons != 0) return buttons;
+                if(buttons != 0) {
+                    bin = buttons;
+                    while(readButtons() != 0) {}
+                    return;
+                }
             }
         }
         char string[256];
+        sprintf(string, " Movement: %d%% ", percentage);
+        printText(400, 200, string, RA8875_WHITE, colour(0,0,4), 1, 1);
+        sprintf(string, " Speed: %d ", speed);
+        printText(400, 250, string, RA8875_WHITE, colour(0,0,4), 1, 1);
         int photoresistor = ADC_GetResult16(0);
-        sprintf(string, " %d ", photoresistor);
+        sprintf(string, " Photoresistor: %d ", photoresistor);
         printText(400, 300, string, RA8875_WHITE, colour(0,0,4), 1, 1);
     }
 }
 
-int bin = 7;
+int BUFFER = 10;
+const int Y_UP[] = { 480, 600, 700, 840, 940 };
+const int Y_DOWN[] = { 560, 420, 380, 380, 360 };
 
-void moveToBin(int button, int hasBin) {
+void moveToBin(int button) {
+    BUFFER = bin >= 9 ? 50 : 10;
     int x = bin%2 - button%2;
     int y =(bin-1)/2 -(button-1)/2;
     bin = button;
+    int weight = readForce();
+    const int yUp = Y_UP[(int)ceil(weight/10.0)] + BUFFER;
+    const int yDown = Y_DOWN[(int)ceil(weight/10.0)] + BUFFER;
     drawRect(0, 0, 800, 480, colour(4, 2, 0), 1);
     char string[256];
     sprintf(string, "Moving to bin %d", button);
     printText(400, 0, string, RA8875_WHITE, -1, 1, 1);
     printText(400, 100, "Beware of moving parts.", RA8875_WHITE, -1, 1, 1);
-    printText(400, 464, "Press the emergency stop button to exit.", RA8875_WHITE, -1, 0, 1);
+    sprintf(string, "Speed: %d", y>0?yUp:yDown);
+    printText(400, 150, string, RA8875_WHITE, -1, 1, 1);
+    printText(400, 464, "Spam the emergency stop button to exit.", RA8875_WHITE, -1, 0, 1);
     // offset x if only vertical movement
     if(x == 0)
         moveMotor(-400,0,0,X_SPEED,0);
     // move short of target
-    moveMotor(-x*1800,y*22000-2000*getSign(y),0,(hasBin==1&&y>0)?Y_SPEED_BIN_UP:Y_SPEED,0);
+    moveMotor(-x*1800,y*22000-2000*getSign(y),0,y>0?yUp:yDown,0);
     // move y to target until white
-    moveMotor(0,99999*getSign(y),0,Y_SPEED_BIN_UP,1);
+    moveMotor(0,99999*getSign(y),0,yUp,1);
     // calibrate to white
 //    while(ADC_GetResult16(0) < THRESHOLD) {
 //        CyDelay(200);
@@ -241,8 +260,8 @@ void moveToBin(int button, int hasBin) {
 }
 
 const int COLOURS[] = { RA8875_BLACK, RA8875_BLUE, RA8875_CYAN, RA8875_GREEN, RA8875_MAGENTA, RA8875_RED, RA8875_WHITE, RA8875_YELLOW };
-const int stepsAbove[] = { 0, 700, 700, 500, 500, 800, 600, 0, 0, 0, 0 };
-const int stepsBelow[] = { 0, 400, 400, 400, 400, 0, 400, 700, 700, 0, 0 };
+const int stepsAbove[] = { 0, 700, 700, 500, 500, 800, 600, 100, 100, 200, 200 };
+const int stepsBelow[] = { 0, 400, 400, 400, 400, 0,   400, 600, 600, 600, 600 };
 
 int main() {
     CyGlobalIntEnable;
@@ -258,53 +277,57 @@ int main() {
     resetPins();
     ADC_Start();
     ADC_StartConvert();
-    
-    int hasBin = -1;
-    
+        
     while(1) {
         int button = readButtons();
         //button = 0;
         char stringA[256] = "             No load             ", stringB[256];
         int forceSensorA = readForce();
         if(forceSensorA > 0)
-            sprintf(stringA, "     Detected weight: %dkg (%dlb)     ", (int)round(forceSensorA*0.453592), forceSensorA);
+            sprintf(stringA, "     Weight: %d kg (%d lb)     ", (int)round(forceSensorA*0.453592), forceSensorA);
         sprintf(stringB, "    Currently at bin %d    ", bin);
         printText(400, 100, stringA, RA8875_RED, RA8875_BLACK, 1, 1);
         printText(400, 150, stringB, RA8875_GREEN, RA8875_BLACK, 1, 1);
         
         if(button != 0) {
-            moveToBin(button, hasBin);
-            if(hasBin == 1) {
+            moveToBin(button);
+            int weight = readForce();
+            const int yUp = Y_UP[(int)ceil(weight/10.0)] + BUFFER;
+            const int yDown = Y_DOWN[(int)ceil(weight/10.0)] + BUFFER;
+            if(weight > -2) {
                 // move up a little
-                moveMotor(0,stepsAbove[button],0,Y_SPEED_BIN_UP,0);
+                moveMotor(0,stepsAbove[button],0,yUp,0);
+                if(readForce()>20)
+                    moveMotor(0,500,0,yUp,0);
                 // extend z
-                moveMotor(0,0,Z_STEPS,Z_SPEED_BIN,0);
+                moveMotor(0,0,Z_STEPS,Z_SPEED,0);
                 // move back down a little
-                moveMotor(0,-stepsAbove[button]-stepsBelow[button],0,Y_SPEED,0);
+                moveMotor(0,-stepsAbove[button]-stepsBelow[button],0,yDown,0);
                 // retract z
                 moveMotor(0,0,-Z_STEPS,Z_SPEED,0);
                 // move up a little
-                moveMotor(0,stepsBelow[button],0,Y_SPEED,0);
+                moveMotor(0,stepsBelow[button],0,yUp,0);
             } else {
                 // move down a little
-                moveMotor(0,-stepsBelow[button],0,Y_SPEED,0);
+                moveMotor(0,-stepsBelow[button],0,yDown,0);
                 // extend z
                 moveMotor(0,0,Z_STEPS,Z_SPEED,0);
                 // move back up a little
-                moveMotor(0,stepsAbove[button]+stepsBelow[button],0,Y_SPEED_BIN_UP,0);
+                moveMotor(0,stepsAbove[button]+stepsBelow[button],0,yUp,0);
+                if(readForce()>10)
+                    moveMotor(0,500,0,yUp,0);
                 // retract z
-                moveMotor(0,0,-Z_STEPS,Z_SPEED_BIN,0);
+                moveMotor(0,0,-Z_STEPS,Z_SPEED,0);
                 // move down a little
-                moveMotor(0,-stepsAbove[button],0,Y_SPEED,0);
-                moveToBin(7, 1);
+                moveMotor(0,-stepsAbove[button],0,yDown,0);
+                //moveToBin(7, 1);
             }
-            hasBin *= -1;
             screen("Vertical Automated Storage Technology", "Tyler, you thought the screen didn't work, did you?",
                 "Copyright \xA9 2019 VAST, Inc. All rights reserved.",
                 "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", 0, RA8875_BLACK);
         }
         if(!Button_Read()) {
-            bin = moveMotorManual();
+            moveMotorManual();
             screen("Vertical Automated Storage Technology", "Tyler, you thought the screen didn't work, did you?",
                 "Copyright \xA9 2019 VAST, Inc. All rights reserved.",
                 "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", 0, RA8875_BLACK);
