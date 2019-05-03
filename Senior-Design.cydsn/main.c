@@ -219,7 +219,7 @@ const int Y_UP[] = { 480, 600, 700, 840, 940 };
 const int Y_DOWN[] = { 560, 420, 380, 380, 360 };
 
 void moveToBin(int button) {
-    BUFFER = bin >= 9 ? 50 : 10;
+    BUFFER = (bin >= 9 || button >= 9) ? 50 : 10;
     int x = bin%2 - button%2;
     int y =(bin-1)/2 -(button-1)/2;
     bin = button;
@@ -259,7 +259,7 @@ void moveToBin(int button) {
     }
 }
 
-const int COLOURS[] = { RA8875_BLACK, RA8875_BLUE, RA8875_CYAN, RA8875_GREEN, RA8875_MAGENTA, RA8875_RED, RA8875_WHITE, RA8875_YELLOW };
+//const int COLOURS[] = { RA8875_BLACK, RA8875_BLUE, RA8875_CYAN, RA8875_GREEN, RA8875_MAGENTA, RA8875_RED, RA8875_WHITE, RA8875_YELLOW };
 const int stepsAbove[] = { 0, 700, 700, 500, 500, 800, 600, 100, 100, 200, 200 };
 const int stepsBelow[] = { 0, 400, 400, 400, 400, 0,   400, 600, 600, 600, 600 };
 
@@ -281,24 +281,33 @@ int main() {
     while(1) {
         int button = readButtons();
         //button = 0;
-        char stringA[256] = "             No load             ", stringB[256];
+        char string[256] = "             No load             ";
         int forceSensorA = readForce();
         if(forceSensorA > 0)
-            sprintf(stringA, "     Weight: %d kg (%d lb)     ", (int)round(forceSensorA*0.453592), forceSensorA);
-        sprintf(stringB, "    Currently at bin %d    ", bin);
-        printText(400, 100, stringA, RA8875_RED, RA8875_BLACK, 1, 1);
-        printText(400, 150, stringB, RA8875_GREEN, RA8875_BLACK, 1, 1);
+            sprintf(string, "     Weight: %d kg (%d lb)     ", (int)round(forceSensorA*0.453592), forceSensorA);
+        if(forceSensorA > 40)
+            sprintf(string, "        Overloaded!        ");
+        printText(400, 100, string, RA8875_RED, RA8875_BLACK, 1, 1);
+        sprintf(string, "    Currently at bin %d    ", bin);
+        printText(400, 150, string, RA8875_GREEN, RA8875_BLACK, 1, 1);
         
         if(button != 0) {
+            while(readForce() > 40) {
+                drawRect(0, 0, 800, 480, RA8875_RED, 1);
+                CyDelay(100);
+                printText(400, 150, "Overloaded!", RA8875_WHITE, -1, 1, 1);
+                printText(400, 250, "Please take stuff out of the bin.", RA8875_WHITE, -1, 1, 1);
+                CyDelay(400);
+            }
             moveToBin(button);
             int weight = readForce();
+            BUFFER = (bin >= 9 || button >= 9) ? 50 : 10;
             const int yUp = Y_UP[(int)ceil(weight/10.0)] + BUFFER;
             const int yDown = Y_DOWN[(int)ceil(weight/10.0)] + BUFFER;
             if(weight > -2) {
                 // move up a little
                 moveMotor(0,stepsAbove[button],0,yUp,0);
-                if(readForce()>20)
-                    moveMotor(0,500,0,yUp,0);
+                weight = readForce() > 20;
                 // extend z
                 moveMotor(0,0,Z_STEPS,Z_SPEED,0);
                 // move back down a little
@@ -314,13 +323,16 @@ int main() {
                 moveMotor(0,0,Z_STEPS,Z_SPEED,0);
                 // move back up a little
                 moveMotor(0,stepsAbove[button]+stepsBelow[button],0,yUp,0);
-                if(readForce()>10)
-                    moveMotor(0,500,0,yUp,0);
+                weight = readForce() > 10;
+                if(weight)
+                    moveMotor(0,200,0,yUp,0);
                 // retract z
                 moveMotor(0,0,-Z_STEPS,Z_SPEED,0);
                 // move down a little
                 moveMotor(0,-stepsAbove[button],0,yDown,0);
-                //moveToBin(7, 1);
+                if(weight)
+                    moveMotor(0,-200,0,yUp,0);
+                moveToBin(7);
             }
             screen("Vertical Automated Storage Technology", "Tyler, you thought the screen didn't work, did you?",
                 "Copyright \xA9 2019 VAST, Inc. All rights reserved.",
