@@ -214,7 +214,7 @@ const int Y_DOWN[] = { 580, 580, 580 };
 
 void moveToBin(int start, int end) {
     const int y =(start-1)/2 -(end-1)/2;
-    const int tempEnd = end%2==0&&y!=0 ? end-1 : end;
+    const int tempEnd = end%2==0 ? end-1 : end;
     const int x = start%2 - tempEnd%2;
     const int hasBin = (readForce() > -3) + (readForce() > 15);
     const int yUp = Y_UP[hasBin];
@@ -235,15 +235,13 @@ void moveToBin(int start, int end) {
     // calibrate to white if no vertical movement
     if(y==0) moveMotor(0,-99999,0,yDown,1);
     // move x to target until black
-    moveMotor(-9999*getSign(x),0,0,X_SPEED,-1);
+    // moveMotor(-9999*getSign(x),0,0,X_SPEED,-1);
     // calibrate to black
-    if(x==0) {
-        if(tempEnd!=end) moveMotor(-9999,0,0,1200,-1);
-        else moveMotor(9999,0,0,1200,-1);
-    }
+    if(tempEnd==end) moveMotor(9999,0,0,1200,-1);
+    else moveMotor(-9999,0,0,1200,-1);
 }
 
-const int stepsAbove[] = { 0, 700, 700, 500, 500, 600, 600, 400, 400, 400, 400 };
+const int stepsAbove[] = { 0, 700, 700, 500, 500, 800, 800, 400, 400, 400, 400 };
 const int stepsBelow[] = { 0, 400, 400, 400, 400, 400, 400, 500, 500, 400, 400 };
 
 int main() {
