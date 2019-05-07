@@ -132,14 +132,23 @@ void moveMotor(int stepsX, int stepsY, int stepsZ, int maxSpeed, int sensorActio
         steps = abs(stepsY);
     if(abs(stepsZ) > steps)
         steps = abs(stepsZ);
-    int i, j=0, irOffset=0;
+    int i, j=0, irOffset=0, interrupted=0;
     for(i=0;i<steps;i++) {
         stepMotor(i<abs(stepsX)*2?i*getSign(stepsX)/2:0,i<abs(stepsY)?i*getSign(stepsY):0,i<abs(stepsZ)?i*getSign(stepsZ):0);
-//        while(IR_Read()) {
-//            resetPins();
-//            irOffset=i;
-//            //CyDelay(2000);
-//        }
+        while(IR_Read()) {
+            resetPins(1);
+            drawRect(0, 0, 800, 480, RA8875_WHITE, 1);
+            int r;
+            for(r=200;r>=180;r--)
+                drawCircle(240, 240, r, RA8875_RED, 0);
+            for(r=106;r<=374;r++)
+                drawCircle(r, r, 10, RA8875_RED, 1);
+            printText(480, 183, "WARNING!", RA8875_BLACK, -1, 1, 0);
+            printText(480, 265, "Keep clear.", RA8875_BLACK, -1, 1, 0);
+            CyDelay(200);
+            irOffset=i;
+            interrupted = 1;
+        }
         int photoresistor = ADC_GetResult16(0);
         if((sensorAction==-1&&photoresistor<THRESHOLD) ||
            (sensorAction==1&&photoresistor>THRESHOLD)) {
@@ -152,6 +161,7 @@ void moveMotor(int stepsX, int stepsY, int stepsZ, int maxSpeed, int sensorActio
         delayExponential(steps-irOffset, 2000, maxSpeed, i-irOffset);
     }
     resetPins(0);
+    if(interrupted) drawRect(0, 0, 800, 480, colour(0,0,4), 1);
 }
 
 const int X_SPEED = 900;
@@ -186,15 +196,16 @@ void moveMotorManual() {
         if(buttons == 10) speed += 20;
         char string[256];
         sprintf(string, " Movement: %d%% ", percentage);
-        printText(400, 150, string, RA8875_WHITE, colour(0,0,4), 1, 1);
+        printText(400, 100, string, RA8875_WHITE, colour(0,0,4), 1, 1);
         sprintf(string, " Speed: %d ", speed);
-        printText(400, 200, string, RA8875_WHITE, colour(0,0,4), 1, 1);
+        printText(400, 150, string, RA8875_WHITE, colour(0,0,4), 1, 1);
         int photoresistor = ADC_GetResult16(0);
         sprintf(string, " Photoresistor: %d ", photoresistor);
-        printText(400, 250, string, RA8875_WHITE, colour(0,0,4), 1, 1);
+        printText(400, 200, string, RA8875_WHITE, colour(0,0,4), 1, 1);
         int forceSensor = readForce();
         sprintf(string, "     Weight: %d kg (%d lb)     ", (int)round(forceSensor*0.453592), forceSensor);
-        printText(400, 300, string, RA8875_WHITE, colour(0,0,4), 1, 1);
+        printText(400, 250, string, RA8875_WHITE, colour(0,0,4), 1, 1);
+        printText(400, 300, IR_Read()?"   IR interrupted   ":"   IR not interrupted   ", RA8875_WHITE, colour(0,0,4), 1, 1);
     }
 }
 
