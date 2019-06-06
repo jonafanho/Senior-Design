@@ -91,9 +91,9 @@ void delayExponential(int totalSteps, int startSpeed, int minSpeed, int currentS
 }
 
 int readButtons() {
-    // 0  9  7  5 15 13  4  3  8 11  2
+    // 0  9 14 12 15 13  4 10  1 11  2
     // 0  1  2  3  4  5  6  7  8  9  10
-    int map[16] = { 0, 0, 10, 7, 6, 3, 0, 2, 8, 1, 0, 9, 0, 5, 0, 4 };
+    int map[16] = { 0, 8, 10, 0, 6, 0, 0, 0, 0, 1, 7, 9, 3, 5, 2, 4 };
     int button1 = 0, button2 = 0;
     if(Button0_Read()) button1 += 1;
     if(Button1_Read()) button1 += 2;
@@ -132,10 +132,11 @@ void moveMotor(int stepsX, int stepsY, int stepsZ, int maxSpeed, int sensorActio
         steps = abs(stepsY);
     if(abs(stepsZ) > steps)
         steps = abs(stepsZ);
-    int i, j=0, irOffset=0, interrupted=0;
+    int i, j=0, irOffset=0, interrupted=0, irBuffer = 0;
     for(i=0;i<steps;i++) {
         stepMotor(i<abs(stepsX)*2?i*getSign(stepsX)/2:0,i<abs(stepsY)?i*getSign(stepsY):0,i<abs(stepsZ)?i*getSign(stepsZ):0);
-        while(IR_Read()) {
+        irBuffer = IR_Read() ? irBuffer + 1 : 0;
+        while(irBuffer > 10) {
             resetPins(1);
             drawRect(0, 0, 800, 480, RA8875_WHITE, 1);
             int r;
@@ -148,6 +149,7 @@ void moveMotor(int stepsX, int stepsY, int stepsZ, int maxSpeed, int sensorActio
             CyDelay(200);
             irOffset=i;
             interrupted = 1;
+            irBuffer = IR_Read() ? irBuffer + 1 : 0;
         }
         int photoresistor = ADC_GetResult16(0);
         if((sensorAction==-1&&photoresistor<THRESHOLD) ||
@@ -197,7 +199,7 @@ void moveMotorManual() {
         char string[256];
         sprintf(string, " Movement: %d%% ", percentage);
         printText(400, 100, string, RA8875_WHITE, colour(0,0,4), 1, 1);
-        sprintf(string, " Speed: %d ", speed);
+        sprintf(string, " Speed: %d   Button: %d %d%d%d%d ", speed, buttons, Button3_Read(), Button2_Read(), Button1_Read(), Button0_Read());
         printText(400, 150, string, RA8875_WHITE, colour(0,0,4), 1, 1);
         int photoresistor = ADC_GetResult16(0);
         sprintf(string, " Photoresistor: %d ", photoresistor);
