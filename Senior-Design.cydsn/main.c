@@ -196,6 +196,7 @@ void moveMotorManual() {
         if(buttons == 9 && percentage > 0) percentage -= 5;
         if(buttons == 8) speed -= 20;
         if(buttons == 10) speed += 20;
+        // if(!Button_Read()) demoMode();
         char string[256];
         sprintf(string, " Movement: %d%% ", percentage);
         printText(400, 100, string, RA8875_WHITE, colour(0,0,4), 1, 1);
@@ -243,7 +244,37 @@ void moveToBin(int start, int end) {
     else moveMotor(-9999,0,0,1200,-1);
 }
 
-const int stepsAbove[] = { 0, 700, 700, 500, 500, 800, 800, 400, 400, 400, 400 };
+int demoMode() {
+    screen("Which bin are you at?", "Demo Mode needs to be initalized.",
+        "Copyright \xA9 2019 VAST, Inc. All rights reserved.",
+        "1", "2", "3", "4", "5", "6", "7", "8", "Auto", "Auto", 0, colour(4,0,0));
+    int bin = 0;
+    while(bin == 0) {
+        bin = readButtons();
+        if(!Button_Read()) moveMotorManual();
+    }
+    screen("Which bin are you at?", "Demo Mode needs to be initalized.",
+        "Copyright \xA9 2019 VAST, Inc. All rights reserved.",
+        "1", "2", "3", "4", "5", "6", "7", "8", "Auto", "Auto", bin, -1);
+    logo();
+    CyDelay(100);
+    while(readButtons() != 0) {}
+    if(bin >= 9) return 0;
+    while(readButtons() == 0) {
+        resetPins(1);
+        // wait for button
+        CyDelay(1000);
+        int newBin = rand()%8 + 1;
+        moveToBin(bin, newBin);
+        bin = newBin;
+    }    
+    drawRect(0, 0, 800, 480, colour(0, 4, 0), 1);
+    printText(400, 100, "Exiting Demo Mode.", RA8875_WHITE, -1, 1, 1);
+    while(readButtons() != 0) {}
+    return bin;
+}
+
+const int stepsAbove[] = { 0, 700, 700, 700, 700, 800, 800, 400, 400, 400, 400 };
 const int stepsBelow[] = { 0, 400, 400, 400, 400, 400, 400, 500, 500, 400, 400 };
 
 int main() {
@@ -254,19 +285,22 @@ int main() {
     ADC_Start();
     ADC_StartConvert();
     init();
+    srand(time(0));
     logo();
     CyDelay(100);
-    screen("Which bin are you at?", "The system needs to be initalized.",
-        "Copyright \xA9 2019 VAST, Inc. All rights reserved.",
-        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", 0, colour(4,0,0));
-    int bin = 0;
-    while(bin == 0) {
-        bin = readButtons();
-        if(!Button_Read()) moveMotorManual();
+    int bin = demoMode();
+    if(bin == 0) {
+        screen("Which bin are you at?", "Automatic Mode needs to be initalized.",
+            "Copyright \xA9 2019 VAST, Inc. All rights reserved.",
+            "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", 0, colour(4,0,0));
+        while(bin == 0) {
+            bin = readButtons();
+            if(!Button_Read()) moveMotorManual();
+        }
+        screen("Which bin are you at?", "Automatic Mode needs to be initalized.",
+            "Copyright \xA9 2019 VAST, Inc. All rights reserved.",
+            "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", bin, -1);
     }
-    screen("Which bin are you at?", "The system needs to be initalized.",
-        "Copyright \xA9 2019 VAST, Inc. All rights reserved.",
-        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", bin, -1);
     while(readButtons() != 0) {}
     while(1) {
         // no bin

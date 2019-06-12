@@ -11,6 +11,7 @@
   <Group key="DWRInstGuidMapping">
     <Group key="Pin">
       <Data key="0af9b2a8-0c84-42c9-af69-3d49ea2594d1" value="y1b" />
+      <Data key="2a3f8098-9433-4bee-b7d5-8d05e0bf3bbd" value="LED_1" />
       <Data key="2faae546-2f97-447f-acb8-c715c996402b" value="LCD_Power1" />
       <Data key="3b132723-7485-44d9-a5b5-f879c772761d" value="LED_G" />
       <Data key="3dbba19d-7851-4a83-b204-a0a386fe8d68/5382e105-1382-4a2e-b9f4-3bb2feba71e0" value="I2C_sda" />
@@ -1272,6 +1273,11 @@
     </Group>
   </Group>
   <Group key="Pin2">
+    <Group key="2a3f8098-9433-4bee-b7d5-8d05e0bf3bbd">
+      <Group key="0">
+        <Data key="Port Format" value="1,0" />
+      </Group>
+    </Group>
     <Group key="2faae546-2f97-447f-acb8-c715c996402b">
       <Group key="0">
         <Data key="Port Format" value="1,7" />

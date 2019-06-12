@@ -206,13 +206,13 @@ void logo() {
         CyDelay(1);
     }
     for(i=0;i<=144;i++)
-        circleHelper(232+i/2, 24+i, 3, RA8875_RED, 1);
+        circleHelper(232+i/2, 24+i, 3, RA8875_GREEN, 1);
     for(i=0;i<=144;i++)
-        circleHelper(304+i/2, 168-i, 3, RA8875_RED, 1);
+        circleHelper(304+i/2, 168-i, 3, RA8875_GREEN, 1);
     for(i=0;i<=144;i++)
-        circleHelper(424+i/2, 168-i, 3, RA8875_GREEN, 1);
+        circleHelper(424+i/2, 168-i, 3, RA8875_RED, 1);
     for(i=0;i<=144;i++)
-        circleHelper(496+i/2, 24+i, 3, RA8875_GREEN, 1);
+        circleHelper(496+i/2, 24+i, 3, RA8875_RED, 1);
     for(i=0;i<=144;i++)
         circleHelper(376-i, 216, 3, RA8875_WHITE, 1);
     for(i=0;i<=144;i++)
